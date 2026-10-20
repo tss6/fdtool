@@ -4,12 +4,12 @@ A tool to manipulate functional dependencies.
 
 ### TODO
 
-- [ ] start
+- [X] start
 - [ ] define .fds grammar
 - [ ] .fds parser
-- [ ] find a way to encode parsed instance where ops are fast ;-;
+- [X] find a way to encode parsed instance where ops are fast ;-;
     - [ ] graph?
-    - [ ] bitmask?
+    - [X] bitmask? (for now...)
     - [ ] both?
 - [ ] examples
 - [ ] closure
