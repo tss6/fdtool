@@ -62,7 +62,8 @@ typedef uint32_t AttrSet;
 #define ATTR_EMPTY ((AttrSet) 0u)
 
 /* convert char -> attr */
-static inline AttrSet attr_char(char c) {
+static inline AttrSet attr_char(char c)
+{
   return (c >= 'A' && c <= 'Z') ? ATTR((unsigned)(c - 'A')) : ATTR_EMPTY;
 }
 
@@ -70,32 +71,38 @@ static inline AttrSet attr_union(AttrSet a, AttrSet b) { return a | b; }
 static inline AttrSet attr_inter(AttrSet a, AttrSet b) { return a & b; }
 static inline AttrSet attr_diff (AttrSet a, AttrSet b) { return a & ~b; }
 
-static inline AttrSet attr_add(AttrSet a, unsigned int idx) {
+static inline AttrSet attr_add(AttrSet a, unsigned idx)
+{
   assert(idx < ATTR_COUNT);
   return a | ATTR(idx);
 }
-static inline AttrSet attr_del(AttrSet a, unsigned int idx) {
+static inline AttrSet attr_del(AttrSet a, unsigned idx)
+{
   assert(idx < ATTR_COUNT);
   return a & ~ATTR(idx);
 }
-static inline AttrSet attr_toggle(AttrSet a, unsigned int idx) {
+static inline AttrSet attr_toggle(AttrSet a, unsigned idx)
+{
   assert(idx < ATTR_COUNT);
   return a ^ ATTR(idx);
 }
 
-static inline bool attr_in(unsigned int idx, AttrSet a) {
+static inline bool attr_in(unsigned idx, AttrSet a)
+{
   assert(idx < ATTR_COUNT);
   return (a & ATTR(idx)) != 0;
 }
 static inline bool attr_empty(AttrSet a)              { return a == ATTR_EMPTY; }
 static inline bool attr_equal(AttrSet a, AttrSet b)   { return a == b; }
 static inline bool attr_subset(AttrSet a, AttrSet b)  { return (a & ~b) == 0; }  /* b contains a (a <= b) */
-static inline bool attr_psubset(AttrSet a, AttrSet b) {                          /* b strictly contains a (a < b) */
+static inline bool attr_psubset(AttrSet a, AttrSet b)                            /* b strictly contains a (a < b) */
+{
   return (a != b) && attr_subset(a, b);
 }
 static inline bool attr_disjoint(AttrSet a, AttrSet b) { return (a & b) == 0; }
 
-static inline int attr_size(AttrSet x) { /* number of elements */
+static inline unsigned attr_size(AttrSet x)  /* number of elements */
+{
   /* rabbit-hole... things to note:
    *
    * - we want to count the number of ones in a 32bit number

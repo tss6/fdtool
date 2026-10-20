@@ -5,7 +5,7 @@ A tool to manipulate functional dependencies.
 ### TODO
 
 - [X] start
-- [ ] define .fds grammar
+- [X] define .fds grammar
 - [ ] .fds parser
 - [X] find a way to encode parsed instance where ops are fast ;-;
     - [ ] graph?
@@ -19,3 +19,4 @@ A tool to manipulate functional dependencies.
     - [ ] 3NF
     - [ ] BCNF
 - [ ] cli
+- [ ] format
