@@ -6,7 +6,9 @@ A tool to manipulate functional dependencies.
 
 - [X] start
 - [X] define .fds grammar
-- [ ] .fds parser
+- [X] load .fds file
+- [ ] .fds lexer
+- [ ] .fds parser (& errors)
 - [X] find a way to encode parsed instance where ops are fast ;-;
     - [ ] graph?
     - [X] bitmask? (for now...)

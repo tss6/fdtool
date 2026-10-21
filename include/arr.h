@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-/* very good tsoding :)
+/* absolute tsoding :)
  * https://www.youtube.com/watch?v=gtk3RZHwJUA */
 
 typedef struct {
@@ -27,15 +27,15 @@ typedef struct {
     }                                                                      \
     hdr_t *hdr = (hdr_t*)(arr) - 1;                                        \
     if (hdr->cnt >= hdr->cap) {                                            \
-      hdr->cap *= 1.5f;                                                    \
+      hdr->cap += hdr->cap / 2;                                            \
       hdr = realloc(hdr, sizeof(*arr)*hdr->cap + sizeof(hdr_t));           \
       arr = (void*)(hdr + 1);                                              \
     }                                                                      \
     (arr)[hdr->cnt++] = (x);                                               \
   } while(0)
 
-#define arr_len(arr) ((hdr_t*)(arr) - 1)->cnt
+ #define arr_len(arr)  ((arr) ? ((hdr_t*)(arr) - 1)->cnt : 0)
 
-#define arr_free(arr) free((hdr_t*)(arr) - 1)
+ #define arr_free(arr) do { if (arr) free((hdr_t*)(arr) - 1); } while (0)
 
 #endif /* ARR_H */
