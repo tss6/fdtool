@@ -12,7 +12,7 @@ bool source_load(SourceFile *sf, const char *path)
     FILE    *fp = NULL;
     char    *buf = NULL;
     size_t  *starts = NULL;
-    size_t  n, i;
+    size_t  n, i, sz;
     long    size; /* ftell returns long lol */
 
     memset(sf, 0, sizeof(*sf));
@@ -27,10 +27,13 @@ bool source_load(SourceFile *sf, const char *path)
     if ((size = ftell(fp)) < 0 || fseek(fp, 0, SEEK_SET) != 0)
       goto err;
 
-    if (!(buf = malloc(size + 1)))
+    /* compiler always complaining */
+    sz = (size_t)size;
+
+    if (!(buf = malloc(sz + 1)))
       goto err;
 
-    if ((n = fread(buf, 1, size, fp)) != (size_t)size && ferror(fp))
+    if ((n = fread(buf, 1, sz, fp)) != (size_t)size && ferror(fp))
       goto err;
 
     fclose(fp);
@@ -61,7 +64,7 @@ void source_free(SourceFile *sf)
     memset(sf, 0, sizeof(*sf));
 }
 
-LineCol source_line_col(SourceFile *sf, size_t off)
+LineCol source_line_col(const SourceFile *sf, size_t off)
 {
     /* find the last line whose start is <= offset
      * just binary search :p */
@@ -75,7 +78,7 @@ LineCol source_line_col(SourceFile *sf, size_t off)
     return lc;
 }
 
-const char *source_line_text(SourceFile *sf, size_t line, size_t *len)
+const char *source_line_text(const SourceFile *sf, size_t line, size_t *len)
 {
     size_t i = line - 1;
     size_t e = sf->size;

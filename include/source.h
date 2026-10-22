@@ -31,8 +31,8 @@ static inline size_t span_len(Span s) { return s.hi - s.lo; }
 bool source_load(SourceFile *sf, const char *filepath);
 void source_free(SourceFile *sf);
 
-LineCol source_line_col(SourceFile *sf, size_t off);
+LineCol source_line_col(const SourceFile *sf, size_t off);
 
-const char *source_line_text(SourceFile *sf, size_t line, size_t *len);
+const char *source_line_text(const SourceFile *sf, size_t line, size_t *len);
 
 #endif /* SOURCE_H */
