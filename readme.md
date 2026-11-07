@@ -16,7 +16,7 @@ A tool to manipulate functional dependencies.
     - [ ] both?
 - [X] examples/
 - [ ] examples for each op
-- [ ] closure
+- [X] closure
 - [ ] mincover
 - [ ] keys
 - [ ] normalform

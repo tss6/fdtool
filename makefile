@@ -2,7 +2,7 @@ CC = cc
 CFLAGS = -Iinclude -std=c11 -Wall -Wextra -g
 
 TARGET = fdtool
-OBJS = build/main.o build/diag.o build/lexer.o build/source.o build/parser.o
+OBJS = build/main.o build/diag.o build/lexer.o build/source.o build/parser.o build/ops.o
 
 $(TARGET): $(OBJS)
 	$(CC) -o $@ $^

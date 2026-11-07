@@ -4,6 +4,7 @@
 
 #include "parser.h"
 #include "source.h"
+#include "ops.h"
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -19,11 +20,19 @@ int main(int argc, char **argv) {
 
   Inst inst;
   bool ok = parse_inst(&sf, &inst);
-  if (ok) {
-    printf("ok: %u attributes, %zu dependencies\n",
-        attr_size(inst.uni), arr_len(inst.fds));
-    inst_free(&inst);
-  }
+  if (!ok) { return 1; }
+
+  print_fds(stdout, inst.fds);
+
+  AttrSet cl = closure(ATTR_A, inst.fds);
+
+  printf("A closure: ");
+  print_attrs(stdout, cl, true);
+
+  cl = closure(ATTR_B|ATTR_D, inst.fds);
+
+  printf("BD closure: ");
+  print_attrs(stdout, cl, true);
 
   source_free(&sf);
   return 0;
