@@ -23,7 +23,23 @@ typedef struct Lexer {
   const SourceFile *sf;
   const char       *cur;
   const char       *end;
+  bool              quiet; /* dont print errors */
 } Lexer;
+
+/* quiet is used to not print errors like this:
+ *
+ * examples/proffail.fds:2:16: error: expected '>' after '-' (did you mean '->'?)
+ *  2 | F = { 	A->BC, C- >D, BD->E }
+ *    |       	       ^
+ * examples/proffail.fds:2:18: error: unexpected character '>'
+ *  2 | F = { 	A->BC, C- >D, BD->E }
+ *    |       	         ^
+ * examples/proffail.fds:2:20: error: expected '->'
+ *  2 | F = { 	A->BC, C- >D, BD->E }
+ *    |                    ^
+ *
+ * happens when parser gets into panic mode
+ */
 
 void lexer_init(Lexer *lx, const SourceFile *sf);
 Tok  next(Lexer *lx);

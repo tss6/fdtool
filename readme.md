@@ -9,7 +9,7 @@ A tool to manipulate functional dependencies.
 - [X] load .fds file
 - [X] .fds lexer
 - [X] diagnostics :)
-- [ ] .fds parser
+- [X] .fds parser
 - [X] find a way to encode parsed instance where ops are fast ;-;
     - [ ] graph?
     - [X] bitmask? (for now...)

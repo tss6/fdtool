@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "lexer.h"
+#include "parser.h"
 #include "source.h"
 
 int main(int argc, char **argv) {
@@ -17,18 +17,12 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  Lexer lx;
-  lexer_init(&lx, &sf);
-
-  for (;;) {
-    Tok t = next(&lx);
-    if (t.kind == TOK_ERROR) break;
-
-    LineCol lc = source_line_col(&sf, t.span.lo);
-    printf("%zu:%zu\t%-7s '%.*s'\n", lc.line, lc.col, tok_name(t.kind),
-        (int)span_len(t.span), tok_text(&sf, t));
-
-    if (t.kind == TOK_EOF) break;
+  Inst inst;
+  bool ok = parse_inst(&sf, &inst);
+  if (ok) {
+    printf("ok: %u attributes, %zu dependencies\n",
+        attr_size(inst.uni), arr_len(inst.fds));
+    inst_free(&inst);
   }
 
   source_free(&sf);

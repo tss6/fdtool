@@ -1,5 +1,5 @@
-#include "../include/lexer.h"
-#include "../include/diag.h"
+#include "lexer.h"
+#include "diag.h"
 
 #include <stdio.h>
 #include <ctype.h>
@@ -48,7 +48,8 @@ Tok next(Lexer *lx)
         return token(lx, TOK_ARROW, start);
       }
       Tok t = token(lx, TOK_ERROR, start);
-      diag_error(lx->sf, t.span, "expected '>' after '-' (did you mean '->'?)");
+      if (!lx->quiet)
+        diag_error(lx->sf, t.span, "expected '>' after '-' (did you mean '->'?)");
       return t;
     default:
       break;
@@ -58,10 +59,12 @@ Tok next(Lexer *lx)
     return token(lx, TOK_IDENT, start);
 
   Tok t = token(lx, TOK_ERROR, start);
-  if (isprint(u(c)))
-    diag_error(lx->sf, t.span, "unexpected character '%c'", c);
-  else
-    diag_error(lx->sf, t.span, "unexpected byte 0x%02x", u(c));
+  if (!lx->quiet) {
+    if (isprint(u(c)))
+      diag_error(lx->sf, t.span, "unexpected character '%c'", c);
+    else
+      diag_error(lx->sf, t.span, "unexpected byte 0x%02x", u(c));
+  }
   return t;
 }
 

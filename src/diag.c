@@ -73,7 +73,7 @@ static void vreport(Severity sev, const SourceFile *sf, Span span,
 
   fputs(sevc, stderr);
   fputc('^', stderr);
-  for (size_t i = 0; i < n; i++) fputc('~', stderr);
+  for (size_t i = 1; i < n; i++) fputc('~', stderr);
   fprintf(stderr, "%s\n", C_RESET);
 }
 
