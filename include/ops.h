@@ -7,9 +7,8 @@
 /* fds is a dynamic array */
 AttrSet closure(AttrSet x, const FD *fds);
 
-FD *min_cover(const Inst *in);
-
-FD *fds_merge(const FD *fds);
+/* caller frees */
+FD *min_cover(const Inst *in, bool merge);
 
 AttrSet *candidate_keys(const Inst *in);
 

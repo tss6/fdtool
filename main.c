@@ -34,6 +34,14 @@ int main(int argc, char **argv) {
   printf("BD closure: ");
   print_attrs(stdout, cl, true);
 
+
+  printf("Min cover:\n");
+  FD *mc = min_cover(&inst, false);
+
+  print_fds(stdout, mc);
+
+  arr_free(mc);
+  inst_free(&inst);
   source_free(&sf);
   return 0;
 }

@@ -17,7 +17,7 @@ A tool to manipulate functional dependencies.
 - [X] examples/
 - [ ] examples for each op
 - [X] closure
-- [ ] mincover
+- [X] mincover
 - [ ] keys
 - [ ] normalform
     - [ ] 3NF
