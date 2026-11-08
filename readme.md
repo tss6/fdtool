@@ -27,7 +27,7 @@ sep    := ',' | ';'
 
 - `decl`: either `U` (universe) or `F` (fds). each exactly once, any order.
 - `attr`: single uppercase letter (`U` and `F` included).
-- Spaces, tabs and newlines are ignored between tokens (`->` cannot be plit).
+- Spaces, tabs and newlines are ignored between tokens (`->` cannot be split).
 - `U = {}` is a error (must have attributes). `F = {}` is allowed.
 - Duplicate attributes in `U` give a warning, so does trivial dependencies
   (e.g. `A -> A`).
