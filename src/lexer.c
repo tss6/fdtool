@@ -42,6 +42,7 @@ Tok next(Lexer *lx)
     case '{': return token(lx, TOK_LBRACE, start);
     case '}': return token(lx, TOK_RBRACE, start);
     case ',': return token(lx, TOK_COMMA,  start);
+    case ';': return token(lx, TOK_SCOLON,  start);
     case '-':
       if (lx->cur < lx->end && *lx->cur == '>') {
         lx->cur++;
@@ -76,6 +77,7 @@ const char *tok_name(TokKind t)
     case TOK_LBRACE: return "LBRACE";
     case TOK_RBRACE: return "RBRACE";
     case TOK_COMMA:  return "COMMA";
+    case TOK_SCOLON: return "SCOLON";
     case TOK_ARROW:  return "ARROW";
     case TOK_EOF:    return "EOF";
     case TOK_ERROR:  return "ERROR";

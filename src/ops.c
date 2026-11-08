@@ -227,13 +227,17 @@ void print_attrs(FILE *out, AttrSet s, bool nl)
   if (nl) fputc('\n', out);
 }
 
+void print_fd(FILE *out, const FD *fd, bool nl)
+{
+  print_attrs(stdout, fd->lhs, false);
+  /* no spaces huh */
+  fputs("->", out);
+  print_attrs(stdout, fd->rhs, false);
+  if (nl) fputc('\n', out);
+}
+
 void print_fds(FILE *out, const FD *fds)
 {
-  for (size_t i = 0; i < arr_len(fds); i++) {
-    print_attrs(out, fds[i].lhs, false);
-    /* no spaces huh */
-    fputs("->", out);
-    print_attrs(out, fds[i].rhs, false);
-    fputs("\n", out);
-  }
+  for (size_t i = 0; i < arr_len(fds); i++)
+    print_fd(out, &fds[i], true);
 }

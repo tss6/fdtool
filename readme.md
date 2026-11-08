@@ -11,16 +11,18 @@ A tool to manipulate functional dependencies.
 - [X] diagnostics :)
 - [X] .fds parser
 - [X] find a way to encode parsed instance where ops are fast ;-;
-    - [ ] graph?
-    - [X] bitmask? (for now...)
-    - [ ] both?
+    - [X] bitmask?
+    - ~graph?~
+    - ~both?~
 - [X] examples/
-- [ ] examples for each op
+- [X] examples for each op
 - [X] closure
 - [X] mincover
 - [X] keys
 - [X] normalform
     - [X] 3NF
     - [X] BCNF
-- [ ] cli
-- [ ] format
+- [X] cli
+- ~format~
+- [ ] fix readme
+- [ ] report

@@ -20,6 +20,7 @@ AttrSet *keys(const Inst *in);
 FD *nf_violations(const Inst *in, const AttrSet *ks, bool tnf);
 
 void print_attrs(FILE *out, AttrSet s, bool nl);
+void print_fd(FILE *out, const FD *fd, bool nl);
 void print_fds(FILE *out, const FD *fds);        /* one per line */
 
 #endif

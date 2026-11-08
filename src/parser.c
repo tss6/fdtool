@@ -62,10 +62,11 @@ static void sync_decl(Parser *p)
   p->panic = false;
 }
 
-/* skip to the next ',' or '}' inside a list */
+/* skip to the next ',' or ';' or '}' inside a list */
 static void sync_item(Parser *p)
 {
   while (p->tok.kind != TOK_COMMA  &&
+         p->tok.kind != TOK_SCOLON &&
          p->tok.kind != TOK_RBRACE &&
          p->tok.kind != TOK_EOF)
     advance(p);
@@ -94,18 +95,20 @@ static void parse_universe(Parser *p, Inst *in)
     set = attr_union(set, a);
     advance(p);
 
-    if (p->tok.kind != TOK_COMMA) break;
+    if (p->tok.kind != TOK_COMMA &&
+        p->tok.kind != TOK_SCOLON) break;
 
     advance(p);
     if (p->tok.kind != TOK_IDENT) {
-      perr(p, p->tok.span, "expected attribute after ','");
+      perr(p, p->tok.span, "expected attribute after '%c'",
+            (p->prev.kind == TOK_COMMA ? ',' : ';'));
       sync_decl(p);
       in->uni = set;
       return;
     }
   }
 
-  if (!expect(p, TOK_RBRACE, "',' or '}'")) {
+  if (!expect(p, TOK_RBRACE, "',' or ';' or '}'")) {
     sync_decl(p);
     in->uni = set;
     return;
@@ -172,7 +175,8 @@ static void parse_fds(Parser *p, Inst *in)
       if (!parse_fd(p, in))
         sync_item(p);
 
-      if (p->tok.kind != TOK_COMMA) break;
+      if (p->tok.kind != TOK_COMMA &&
+          p->tok.kind != TOK_SCOLON) break;
 
       advance(p);
 
@@ -180,7 +184,7 @@ static void parse_fds(Parser *p, Inst *in)
     }
   }
 
-  if (!expect(p, TOK_RBRACE, "',' or '}'"))
+  if (!expect(p, TOK_RBRACE, "',' or ';' or '}'"))
     sync_decl(p);
 }
 

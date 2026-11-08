@@ -9,6 +9,7 @@ typedef enum TokKind {
   TOK_LBRACE,   /*  {   */
   TOK_RBRACE,   /*  }   */
   TOK_COMMA,    /*  ,   */
+  TOK_SCOLON,   /*  ;   */
   TOK_ARROW,    /*  ->  */
   TOK_EOF,
   TOK_ERROR
