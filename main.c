@@ -49,11 +49,19 @@ int main(int argc, char **argv) {
   }
 
 
+  printf("3NF:\n");
+  FD *v = nf_violations(&inst, ks, true);
+
+  print_fds(stdout, v);
+  arr_free(v);
+
+
   printf("BCNF:\n");
-  FD *v = bcnf(&inst);
+  v = nf_violations(&inst, ks, false);
 
   print_fds(stdout, v);
 
+  arr_free(v);
   arr_free(mc);
   arr_free(ks);
   inst_free(&inst);

@@ -13,7 +13,11 @@ FD *min_cover(const Inst *in, bool merge);
 /* returns dynamic array, caller frees */
 AttrSet *keys(const Inst *in);
 
-FD *bcnf(const Inst *in);
+/* tnf -> false == BCNF
+ * tnf -> true  == 3NF
+ * ks is array of candidate keys
+ * returns dynamic array, caller frees */
+FD *nf_violations(const Inst *in, const AttrSet *ks, bool tnf);
 
 void print_attrs(FILE *out, AttrSet s, bool nl);
 void print_fds(FILE *out, const FD *fds);        /* one per line */

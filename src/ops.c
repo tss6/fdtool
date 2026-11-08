@@ -187,9 +187,18 @@ AttrSet *keys(const Inst *in)
   return keys;
 }
 
-FD *bcnf(const Inst *in)
+static AttrSet prime_attrs(const AttrSet *ks)
 {
-  FD *cover = min_cover(in, false);   /* nontrivial, single rhs */
+  AttrSet p = ATTR_EMPTY;
+  for (size_t i = 0; i < arr_len(ks); i++)
+    p = attr_union(p, ks[i]);
+  return p;
+}
+
+FD *nf_violations(const Inst *in, const AttrSet *ks, bool tnf)
+{
+  FD *cover = min_cover(in, false);   /* nao trivial, rhs unitario */
+  AttrSet prime = prime_attrs(ks);
   FD *out = NULL;
 
   for (size_t i = 0; i < arr_len(cover); i++) {
@@ -197,6 +206,9 @@ FD *bcnf(const Inst *in)
 
     /* X is a superkey */
     if (attr_subset(in->uni, closure(fd.lhs, in->fds))) continue;
+
+    /* 3NF: rhs can be prime */
+    if (tnf && attr_subset(fd.rhs, prime)) continue;
 
     arr_push(out, fd);
   }
