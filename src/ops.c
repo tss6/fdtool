@@ -187,6 +187,24 @@ AttrSet *keys(const Inst *in)
   return keys;
 }
 
+FD *bcnf(const Inst *in)
+{
+  FD *cover = min_cover(in, false);   /* nontrivial, single rhs */
+  FD *out = NULL;
+
+  for (size_t i = 0; i < arr_len(cover); i++) {
+    FD fd = cover[i];
+
+    /* X is a superkey */
+    if (attr_subset(in->uni, closure(fd.lhs, in->fds))) continue;
+
+    arr_push(out, fd);
+  }
+
+  arr_free(cover);
+  return out;
+}
+
 void print_attrs(FILE *out, AttrSet s, bool nl)
 {
   if (attr_empty(s)) return;

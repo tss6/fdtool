@@ -23,7 +23,7 @@
  *
  * did them all as static inline so that the compiler can inline it all
  * otherwise it would be a different translation unit blah blah
- * see: https://stackoverflow.com/questions/7762731/whats-the-difference-between-static-and-static-inline-function
+ * see: https://stackoverflow.com/questions/7762731/
  */
 
 typedef uint32_t AttrSet;
@@ -113,7 +113,7 @@ static inline unsigned attr_size(AttrSet x)  /* number of elements */
    *   a mainstream compiler... why do dis?
    */
 
-  /* https://stackoverflow.com/questions/109023/count-the-number-of-set-bits-in-a-32-bit-integer#109025 */
+  /* https://stackoverflow.com/questions/109023/ */
 
   /* https://www.felixcloutier.com/x86/popcnt */
 
@@ -121,7 +121,7 @@ static inline unsigned attr_size(AttrSet x)  /* number of elements */
 
   /* https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html#index-_005f_005fbuiltin_005fpopcount */
   /* https://clang.llvm.org/docs/LanguageExtensions.html#builtin-popcountg */
-  return __builtin_popcount(x);
+  return (unsigned)__builtin_popcount(x);
 
 #elif defined(_MSC_VER)
 

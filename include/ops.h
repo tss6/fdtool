@@ -13,6 +13,8 @@ FD *min_cover(const Inst *in, bool merge);
 /* returns dynamic array, caller frees */
 AttrSet *keys(const Inst *in);
 
+FD *bcnf(const Inst *in);
+
 void print_attrs(FILE *out, AttrSet s, bool nl);
 void print_fds(FILE *out, const FD *fds);        /* one per line */
 

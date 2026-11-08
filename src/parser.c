@@ -130,7 +130,6 @@ static AttrSet parse_side(Parser *p)
 }
 
 /* AB -> CD */
-/* AB -> CD */
 static bool parse_fd(Parser *p, Inst *in)
 {
   size_t lo = p->tok.span.lo;

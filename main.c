@@ -48,6 +48,12 @@ int main(int argc, char **argv) {
     print_attrs(stdout, ks[i], true);
   }
 
+
+  printf("BCNF:\n");
+  FD *v = bcnf(&inst);
+
+  print_fds(stdout, v);
+
   arr_free(mc);
   arr_free(ks);
   inst_free(&inst);

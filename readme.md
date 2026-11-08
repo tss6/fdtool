@@ -21,6 +21,6 @@ A tool to manipulate functional dependencies.
 - [X] keys
 - [ ] normalform
     - [ ] 3NF
-    - [ ] BCNF
+    - [X] BCNF
 - [ ] cli
 - [ ] format
