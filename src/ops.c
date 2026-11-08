@@ -75,7 +75,7 @@ FD *min_cover(const Inst *in, bool merge)
 
   /* remocao de estranhos
    * X+ == (X-B)+ */
-  for (size_t i = 0; i < arr_len(in->fds); i++) {
+  for (size_t i = 0; i < arr_len(g); i++) {
     for (unsigned b = 0; b < ATTR_COUNT; b++) {
       if (!attr_in(b, g[i].lhs))    continue;
       if (attr_size(g[i].lhs) == 1) continue;
@@ -104,7 +104,88 @@ FD *min_cover(const Inst *in, bool merge)
 }
 
 
-AttrSet *candidate_keys(const Inst *in);
+AttrSet *keys(const Inst *in)
+{
+  AttrSet lall = ATTR_EMPTY, rall = ATTR_EMPTY;
+  for (size_t i = 0; i < arr_len(in->fds); i++) {
+    lall = attr_union(lall, in->fds[i].lhs);
+    /*                      remove trivial... */
+    rall = attr_union(rall, attr_diff(in->fds[i].rhs, in->fds[i].lhs));
+  }
+
+  /* never derived, in all keys */
+  AttrSet source = attr_diff(in->uni, rall);
+
+  /* derived and used, must try */
+  AttrSet mid = attr_inter(attr_inter(in->uni, rall), lall);
+
+  /* sinks dont help, so skip */
+
+  AttrSet *keys = NULL;
+
+  /* enumerating all subsets of mid in asc order. if we find a candidate,
+   * every key inside it was already found, we can then skip it as it is not
+   * minimal */
+  AttrSet s = ATTR_EMPTY;
+  do {
+    AttrSet cand = attr_union(source, s);
+
+    /* min check */
+    bool min = true;
+    for (size_t i = 0; i < arr_len(keys); i++) {
+      if (attr_subset(keys[i], cand)) {
+        min = false;
+        break;
+      }
+    }
+
+    /* check if valid key */
+    if (min && attr_subset(in->uni, closure(cand, in->fds)))
+      arr_push(keys, cand);
+
+    /* competitive programming trick :D
+     * we use s = (s - 1) & mask to enumerate submasks of mask, so for
+     * 10110 we would generate:
+     *
+     * 10110  00110
+     * 10100  00100
+     * 10010  00010
+     * 10000  00000
+     *
+     * see:
+     * https://www.inf.ufpr.br/andre/Disciplinas/CI1031-2026-2/03-busca-completa-matematica.pdf
+     *
+     * but here we start at 0b0, and we want to go up.
+     * to do that, because AttrSet is unsigned, we use s = (s - mask) & mask,
+     * because, in unsigned arithmetic:
+     *
+     * s - mask = s + ~mask + 1
+     *
+     * s is a submask of mask, it then shares no bits with ~mask, so:
+     *
+     * s + ~mask = s | ~mask
+     *
+     * and then:
+     *
+     * (s - mask) & mask == ((s | ~mask) + 1) & mask
+     *
+     * the +1 carries up to the first in the mask that has not been set yet
+     * and sets it. then we & with mask to unset the ~mask bits we set.
+     *
+     * in the end, after enumerating all submasks, s == mask:
+     *
+     * s = (s - mask) & mask
+     * s = (s - s) & mask
+     * s = 0 & mask
+     * s = 0 == ATTR_EMPTY
+     *
+     * B)
+     */
+    s = (s - mid) & mid;
+  } while (s != ATTR_EMPTY);
+
+  return keys;
+}
 
 void print_attrs(FILE *out, AttrSet s, bool nl)
 {
@@ -119,9 +200,9 @@ void print_attrs(FILE *out, AttrSet s, bool nl)
 void print_fds(FILE *out, const FD *fds)
 {
   for (size_t i = 0; i < arr_len(fds); i++) {
-    fputs(" ", out);
     print_attrs(out, fds[i].lhs, false);
-    fputs(" -> ", out);
+    /* no spaces huh */
+    fputs("->", out);
     print_attrs(out, fds[i].rhs, false);
     fputs("\n", out);
   }

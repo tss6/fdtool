@@ -40,7 +40,16 @@ int main(int argc, char **argv) {
 
   print_fds(stdout, mc);
 
+
+  printf("Keys:\n");
+  AttrSet *ks = keys(&inst);
+
+  for (size_t i = 0; i < arr_len(ks); i++) {
+    print_attrs(stdout, ks[i], true);
+  }
+
   arr_free(mc);
+  arr_free(ks);
   inst_free(&inst);
   source_free(&sf);
   return 0;

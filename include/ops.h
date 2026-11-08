@@ -7,10 +7,11 @@
 /* fds is a dynamic array */
 AttrSet closure(AttrSet x, const FD *fds);
 
-/* caller frees */
+/* returns dynamic array, caller frees */
 FD *min_cover(const Inst *in, bool merge);
 
-AttrSet *candidate_keys(const Inst *in);
+/* returns dynamic array, caller frees */
+AttrSet *keys(const Inst *in);
 
 void print_attrs(FILE *out, AttrSet s, bool nl);
 void print_fds(FILE *out, const FD *fds);        /* one per line */
