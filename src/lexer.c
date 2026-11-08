@@ -5,7 +5,7 @@
 #include <ctype.h>
 
 /* apparently ctype.h requires unsigned char:
- * https://stackoverflow.com/questions/17975913/does-ctype-h-still-require-unsigned-char */
+ * https://stackoverflow.com/questions/17975913/ */
 static unsigned char u(char c) { return (unsigned char)c; }
 
 void lexer_init(Lexer *lx, const SourceFile *sf)
