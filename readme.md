@@ -51,7 +51,7 @@ F = { A->F D  C   E     B, BC->   A } U = {A,	B          ;          C,D;E,F}
 
 ## Commands
 
-There are some inputs [here](examples/) that I used to test functionalities.
+There are some inputs [here](exemplos/) that I used to test functionalities.
 Here are examples using them:
 
 ### Check
@@ -59,19 +59,19 @@ Here are examples using them:
 Runs (syntactic and semantic) checks on a `.fds` file:
 
 ```console
-$ ./fdtool check --fds examples/lexfail.fds
-examples/lexfail.fds:2:16: error: expected '>' after '-' (did you mean '->'?)
+$ ./fdtool check --fds exemplos/lexfail.fds
+exemplos/lexfail.fds:2:16: error: expected '>' after '-' (did you mean '->'?)
  2 | F = { 	A->BC, C- >D, BD->E }
    |
 
-$ ./fdtool check --fds examples/parfail1.fds
-examples/parfail1.fds:2:14: warning: trivial dependency :p
+$ ./fdtool check --fds exemplos/parfail1.fds
+exemplos/parfail1.fds:2:14: warning: trivial dependency :p
  2 | F = { A->BC; C->C; BDG->F }
    |              ^~~~
-examples/parfail1.fds:2:22: error: attribute 'G' is not in the universe :/
+exemplos/parfail1.fds:2:22: error: attribute 'G' is not in the universe :/
  2 | F = { A->BC; C->C; BDG->F }
    |                      ^
-examples/parfail1.fds:2:25: error: attribute 'F' is not in the universe :/
+exemplos/parfail1.fds:2:25: error: attribute 'F' is not in the universe :/
  2 | F = { A->BC; C->C; BDG->F }
    |                         ^
 ```
@@ -85,10 +85,10 @@ Diagnostics are printed gcc style as you can see.
 Prints the closure of the specified attributes (ordered):
 
 ```console
-$ ./fdtool closure --fds examples/prof.fds --X A
+$ ./fdtool closure --fds exemplos/prof.fds --X A
 ABCDE
 
-$ ./fdtool closure --X BD --fds examples/prof.fds
+$ ./fdtool closure --X BD --fds exemplos/prof.fds
 BDE
 ```
 
@@ -98,16 +98,16 @@ Prints the minimal cover/set of functional dependencies. This operation's
 result is not unique, outputs may differ depending on FD order from `.fds`
 file.
 
-> [order1.fds](examples/order1.fds) and [order2.fds](examples/order2.fds) just
+> [order1.fds](exemplos/order1.fds) and [order2.fds](exemplos/order2.fds) just
 > change F set definition orders
 
 ```console
-$ ./fdtool mincover --fds examples/order1.fds
+$ ./fdtool mincover --fds exemplos/order1.fds
 A->B
 B->A
 B->C
 
-$ ./fdtool mincover --fds examples/order2.fds
+$ ./fdtool mincover --fds exemplos/order2.fds
 A->B
 B->A
 A->C
@@ -118,11 +118,11 @@ A->C
 Prints all candidate keys.
 
 ```console
-$ ./fdtool keys --fds examples/multkeys.fds
+$ ./fdtool keys --fds exemplos/multkeys.fds
 AB
 AC
 
-$ ./fdtool keys --fds examples/big.fds
+$ ./fdtool keys --fds exemplos/big.fds
 AD
 ```
 
@@ -132,23 +132,25 @@ Scans schema for 3NF and BCNF violations. Prints whether each NF was violated
 and explains which FD(s) failed each check.
 
 ```console
-$ ./fdtool normalform --fds examples/prof1.fds
+$ ./fdtool normalform --fds exemplos/prof1.fds
 BCNF: VIOLATIONS
 3NF: VIOLATIONS
 VIOLATION BCNF: B->C (B not superkey)
 VIOLATION 3NF: B->C (C not prime, B not superkey)
 
-$ ./fdtool normalform --fds examples/big.fds
+$ ./fdtool normalform --fds exemplos/big.fds
 BCNF: VIOLATIONS
 3NF: VIOLATIONS
 VIOLATION BCNF: A->B (A not superkey)
 VIOLATION BCNF: B->C (B not superkey)
+VIOLATION BCNF: A->C (A not superkey)
 VIOLATION BCNF: DE->F (DE not superkey)
 VIOLATION 3NF: A->B (B not prime, A not superkey)
 VIOLATION 3NF: B->C (C not prime, B not superkey)
+VIOLATION 3NF: A->C (C not prime, A not superkey)
 VIOLATION 3NF: DE->F (F not prime, DE not superkey)
 
-$ ./fdtool normalform --fds examples/multkeys.fds
+$ ./fdtool normalform --fds exemplos/multkeys.fds
 BCNF: VIOLATIONS
 3NF: OK
 VIOLATION BCNF: C->B (C not superkey)

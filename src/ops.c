@@ -197,12 +197,14 @@ static AttrSet prime_attrs(const AttrSet *ks)
 
 FD *nf_violations(const Inst *in, const AttrSet *ks, bool tnf)
 {
-  FD *cover = min_cover(in, false);   /* nao trivial, rhs unitario */
+  /* update to not use min_cover,
+   * makes more sense to use input with unitary rhs */
+  FD *g = remove_trivial(in);
   AttrSet prime = prime_attrs(ks);
   FD *out = NULL;
 
-  for (size_t i = 0; i < arr_len(cover); i++) {
-    FD fd = cover[i];
+  for (size_t i = 0; i < arr_len(g); i++) {
+    FD fd = g[i];
 
     /* X is a superkey */
     if (attr_subset(in->uni, closure(fd.lhs, in->fds))) continue;
@@ -213,7 +215,7 @@ FD *nf_violations(const Inst *in, const AttrSet *ks, bool tnf)
     arr_push(out, fd);
   }
 
-  arr_free(cover);
+  arr_free(g);
   return out;
 }
 
