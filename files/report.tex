@@ -1,0 +1,778 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazilian]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{xurl}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\fd}[2]{\ensuremath{#1 \to #2}}
+\newcommand{\cl}[1]{\ensuremath{#1^{+}}}
+\newcommand{\cmd}[1]{\texttt{#1}}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\via}[1]{\xrightarrow{#1}}
+
+\floatname{algorithm}{Algoritmo}
+\renewcommand{\listalgorithmname}{Lista de Algoritmos}
+\algrenewcommand\algorithmicrequire{\textbf{Entrada:}}
+\algrenewcommand\algorithmicensure{\textbf{Saída:}}
+
+\title{fdtool}
+\author{Theo S Schult -- GRR20241982}
+\date{November 2026}
+
+
+
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+  Repositório: \url{https://github.com/tss6/fdtool/}
+\end{center}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Definições}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Seja:
+
+\begin{itemize}
+    \item $R$: um esquema relacional
+    \item $U$: o universo de atributos de $R$
+    \item $F$: um conjunto de dependências funcionais sobre $U$
+\end{itemize}
+
+\begin{description}[style=nextline]
+    \item[Dependência Funcional (DF)]
+        Para $X, Y \subseteq U$, $X$ determina $Y$ (\fd{X}{Y}) se cada valor de $X$ é associado com exatamente um valor $Y$.
+
+    \item[DF Trivial]
+        \fd{X}{Y} é trivial se $Y \subseteq X$.
+
+    \item[Axiomas de Armstrong]
+        Reflexividade (se $Y \subseteq X$ então \fd{X}{Y}), aumento (se \fd{X}{Y}
+        então \fd{XZ}{YZ}) e transitividade (se \fd{X}{Y} e \fd{Y}{Z} então
+        \fd{X}{Z}).
+
+    \item[Fecho de atributos]
+        O fecho \cl{X} de $X$ em relação a $F$ é o maior conjunto $Y \subseteq U$
+        tal que \fd{X}{Y} $\in$ \cl{F}.
+
+    \item[Equivalência e cobertura]
+        $F$ e $G$ são equivalentes ($F \equiv G$) se $F^{+} = G^{+}$, ou seja, se
+        toda DF de $G$ é implicada por $F$ e vice-versa.
+
+    \item[Atributo estranho]
+        Em \fd{X}{A} $\in G$, o atributo $B \in X$ é estranho se
+        $A \in (X - \{B\})^{+}$ em relação a $G$.
+
+    \item[DF redundante]
+        \fd{X}{A} $\in G$ é redundante se $A \in \cl{X}$ em relação a
+        $G - \{\fd{X}{A}\}$.
+
+    \item[Cobertura mínima]
+        $G$ é uma cobertura mínima de $F$ se $G \equiv F$, todo RHS de $G$ tem um
+        único atributo, nenhuma DF de $G$ possui atributo estranho no LHS e
+        nenhuma DF de $G$ é redundante. Uma cobertura mínima não é única.
+
+    \item[Superchave]
+        $K \subseteq U$ é superchave se $\cl{K} = U$.
+
+    \item[Chave candidata]
+        Superchave minimal: $\cl{K} = U$ e, para todo $K' \subsetneq K$,
+        $\cl{K'} \neq U$.
+
+    \item[Atributo primo]
+        Atributo que pertence a pelo menos uma chave candidata.
+
+    \item[BCNF]
+        $R$ está na Forma Normal de Boyce-Codd se, para toda DF não trivial
+        \fd{X}{A} de $F^{+}$, $X$ é superchave.
+
+    \item[3FN]
+        $R$ está na Terceira Forma Normal se, para toda DF não trivial
+        \fd{X}{A} de $F^{+}$, $X$ é superchave \emph{ou} $A$ é primo.
+\end{description}
+
+Se uma relação está em BCNF, também está em 3NF. A recíproca não vale.
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Representação}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Bitsets}
+
+Atributos foram restritos a \texttt{A..Z}, escolhi por representar um conjunto de atributos
+como um inteiro de 32 bits (\cmd{typedef uint32\_t AttrSet}), onde o bit $i$ determina se o
+atributo \texttt{'A'}$+i$ está presente. Dessa forma, as operações de conjunto são operações
+binárias (\textit{bitwise}) de custo constante:
+
+\begin{center}
+    \begin{tabular}{ll}
+        \toprule
+        Operação & Implementação \\
+        \midrule
+        $X \cup Y$ & \cmd{x | y} \\
+        $X \cap Y$ & \cmd{x \& y} \\
+        $X - Y$ & \cmd{x \& \textasciitilde y} \\
+        $X \subseteq Y$ & \cmd{!(x \& \textasciitilde y)} \\
+        $|X|$ & \cmd{\_\_builtin\_popcount(x)} (ou \emph{Hamming weight}) \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+Uma DF é o par \cmd{struct FD \{ AttrSet lhs; AttrSet rhs; \}} e uma
+instância (\cmd{Inst}) é o universo $U$ mais um vetor dinâmico de DFs.
+
+\subsection{Formato \texttt{.fds}}
+
+Desenvolvi um \textit{lexer} e um \textit{parser} para a seguinte
+gramática que entendi ser a pretendida:
+
+\begin{verbatim}
+file   := decl decl
+decl   := 'U' '=' '{' [ attr (sep attr)* ] '}'
+        | 'F' '=' '{' [ fd   (sep fd)*   ] '}'
+fd     := attr+ '->' attr+
+attr   := 'A' .. 'Z'
+sep    := ',' | ';'
+\end{verbatim}
+
+Qualquer tipo de \textit{whitespace} é ignorado. Ordem não importa.
+Erros e avisos são reportados no estilo do compilador GCC.
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Algoritmos}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Notação para a análise: $n = |U| \le 26$, $m = |F|$ e $m'$ é o número de DFs
+após a decomposição do RHS ($m' \le n \cdot m$).
+
+
+
+\subsection{Fecho \texorpdfstring{$X^{+}$}{X+}}
+
+\begin{algorithm}[H]
+    \caption{Fecho de atributos (\cmd{closure} / \cmd{closure\_skip})}
+    \begin{algorithmic}[1]
+        \Require conjunto $X$, DFs $F$
+        \Ensure \cl{X} em relação a $F$
+        \State $mudou \gets 1$
+        \While{$mudou$}
+        \State $mudou \gets 0$
+        \For{$i \gets 0$ \textbf{até} $|F|-1$}
+        \If{$\mathit{lhs}_i \subseteq X$ \textbf{e} $\mathit{rhs}_i \not\subseteq X$}
+        \State $X \gets X \cup \mathit{rhs}_i$
+        \State $mudou \gets 1$
+        \EndIf
+        \EndFor
+        \EndWhile
+        \State \Return $X$
+    \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Explicação.} Cada atributo é adicionado a $X$ a partir de transitividade
+com o que já existe em $X$. Se existe uma $\text{DF}_i$ onde podemos aplicar o
+axioma, unimos $X$ com o $\mathit{rhs}_i$. O laço \textit{while} termina se nenhuma
+DF atualizou $X$, significando que não é possível expandir $X$ além.
+
+\paragraph{Complexidade.} Toda passagem que não é a última acrescenta pelo menos
+um atributo, então há no máximo $n+1$ passagens de $m$ testes cada: $O(n \cdot m)$
+tempo e $O(1)$ memória extra. Adicionei a variante \cmd{closure\_skip} que ignora
+uma DF pelo índice e é usada na remoção de DFs redundantes, evitando copiar o vetor.
+
+
+
+
+
+
+\subsection{Cobertura mínima}
+
+\begin{algorithm}[H]
+    \caption{Cobertura mínima (\cmd{min\_cover})}
+    \begin{algorithmic}[1]
+        \Require instância $(U, F)$
+        \Ensure cobertura mínima $G$ com RHS unitário
+        \State $G \gets \emptyset$
+        \ForAll{$\fd{X}{Y} \in F$} \Comment{1. RHS unitário}
+        \ForAll{$A \in Y - X$}
+        \State $G \gets G \cup \{\fd{X}{A}\}$ \Comment{descarta a parte trivial}
+        \EndFor
+        \EndFor
+        \ForAll{$\fd{X}{A} \in G$} \Comment{2. atributos estranhos}
+        \ForAll{$B \in X$ \textbf{com} $|X| > 1$}
+        \If{$A \in \cl{(X - \{B\})}$ em relação a $G$}
+        \State $X \gets X - \{B\}$
+        \EndIf
+        \EndFor
+        \EndFor
+        \ForAll{$\fd{X}{A} \in G$, em ordem} \Comment{3. DFs redundantes}
+        \If{$A \in \cl{X}$ em relação a $G - \{\fd{X}{A}\}$}
+        \State remove \fd{X}{A} de $G$
+        \EndIf
+        \EndFor
+        \State \Return $G$
+    \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Explicação.}
+\begin{itemize}
+    \item O passo 1 aplica a regra da decomposição e descarta os atributos de
+        $Y \cap X$, que são triviais. Obviamente, o resultado é equivalente a $F$.
+    \item No passo 2, se $A \in \cl{(X-\{B\})}$ então \fd{(X-\{B\})}{A} já é
+        implicada por $G$, e trocar \fd{X}{A} por ela mantém a equivalência.
+    \item No passo 3, uma DF implicada pelas demais pode ser removida sem
+        alterar \cl{G}. A remoção é feita uma DF por vez, recalculando o fecho
+        sobre o $G$ já reduzido, o que impede remover duas DFs que só são
+        redundantes uma em relação à outra.
+\end{itemize}
+
+\paragraph{Complexidade.} O passo 1 custa $O(n \cdot m)$ e gera $m'$ DFs. O
+passo 2 faz até $n$ fechos por DF: $O(m' \cdot n \cdot n m') = O(n^2 m'^2)$.
+O passo 3 faz um fecho e um deslocamento do vetor (\cmd{memmove}) por DF:
+$O(m' \cdot (n m' + m')) = O(n\,m'^2)$. Total: $O(n^2 m'^2)$, ou $O(n^4 m^2)$
+em função da entrada. Memória: $O(m')$.
+
+
+
+
+
+
+\subsection{Chaves candidatas}
+
+Primeiro classificamos os atributos de $U$ como em grafos direcionados, pela
+posição em que aparecem em DFs não triviais de $F$:
+
+\begin{itemize}
+
+    \item \textbf{fonte} ($S$): não aparecem em nenhum RHS (vizinhança de entrada
+        vazia). Não podem ser derivados, então pertencem a \emph{toda} chave.
+
+    \item \textbf{sumidouro}: aparecem só em RHS (vizinhança de saída vazia).
+        Nunca pertencem a uma chave. Prova: se uma chave $K$ contém um sumidouro
+        $Z$, removê-lo não invalida nenhuma DF de ser usada, e $Z$ continua sendo
+        derivado, logo $\cl{(K-\{Z\})} = U$ e $K$ não é minima, contradição.
+
+    \item \textbf{meio} ($M$): aparecem em algum LHS e em algum RHS. São os
+        únicos que precisam ser testados.
+\end{itemize}
+
+Toda chave candidata tem a forma $S \cup T$ com $T \subseteq M$. O algoritmo
+enumera os subconjuntos $T$ de $M$ em ordem numérica crescente da máscara de
+bits, que parte de $T = \emptyset$ e volta a $\emptyset$ após visitar todas
+as $2^{|M|}$ submáscaras.
+
+\begin{algorithm}[H]
+    \caption{Chaves candidatas (\cmd{keys})}
+    \begin{algorithmic}[1]
+        \Require instância $(U, F)$
+        \Ensure lista $\mathcal{K}$ de todas as chaves candidatas
+        \State $L \gets \bigcup \mathit{lhs}_i$; \ $R \gets \bigcup (\mathit{rhs}_i - \mathit{lhs}_i)$
+        \State $S \gets U - R$; \ $M \gets U \cap R \cap L$
+        \State $\mathcal{K} \gets \emptyset$; \ $T \gets \emptyset$
+        \Repeat
+        \State $C \gets S \cup T$
+        \If{$\nexists K \in \mathcal{K} : K \subseteq C$ \textbf{e} $\cl{C} = U$}
+        \State $\mathcal{K} \gets \mathcal{K} \cup \{C\}$
+        \EndIf
+        \State $T \gets (T - M) \mathbin{\&} M$ \Comment{próxima submáscara}
+        \Until{$T = \emptyset$}
+        \State \Return $\mathcal{K}$
+    \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Explicação (minimalidade).} Se $T' \subsetneq T$, a máscara de $T'$ é
+numericamente menor que a de $T$, então todo subconjunto próprio de um
+candidato é visitado antes dele. Quando $C$ é testado, todas as chaves contidas
+em $C$ já estão em $\mathcal{K}$. Se nenhuma está, nenhum subconjunto próprio
+de $C$ é superchave e, se $\cl{C} = U$, $C$ é chave candidata. Se alguma
+está, $C$ é superchave não mínima e é descartado.
+
+\paragraph{Complexidade.} São $2^{|M|}$ candidatos. Cada um custa um teste de
+minimalidade $O(k)$, sendo $k$ o número de chaves já encontradas, e um fecho
+$O(n \cdot m)$. Total: $O(2^{|M|} (n m + k))$, aceitável pois o número de
+chaves candidatas pode ser exponencial em $n$. Com $n \le 26$ o pior caso é
+$2^{26} \approx 6{,}7 \times 10^7$ candidatos.
+
+
+
+
+
+
+\subsection{Verificação de BCNF e 3FN}
+
+\begin{algorithm}[H]
+    \caption{Verificação de formas normais (\cmd{nf\_violations})}
+    \begin{algorithmic}[1]
+        \Require esquema $(U, F)$, chaves candidatas $\mathcal{K}$, modo (BCNF ou 3FN)
+        \Ensure lista de DFs que violam a forma normal
+        \State $G \gets \{\fd{X}{A} : \fd{X}{Y} \in F,\ A \in Y - X\}$ \Comment{RHS unitário, sem triviais}
+        \State $P \gets \bigcup_{K \in \mathcal{K}} K$ \Comment{atributos primos}
+        \ForAll{$\fd{X}{A} \in G$}
+        \If{$\cl{X} = U$} \textbf{continue} \Comment{$X$ é superchave}
+        \EndIf
+        \If{modo $=$ 3FN \textbf{e} $A \in P$} \textbf{continue} \Comment{$A$ é primo}
+        \EndIf
+        \State registra violação \fd{X}{A}
+        \EndFor
+    \end{algorithmic}
+\end{algorithm}
+
+\paragraph{Explicação.} $G$ é $F$ decomposto em RHS unitário, sem as partes
+triviais (passo 1 da cobertura mínima). As violações listadas são, portanto,
+DFs escritas na entrada. O teste de superchave usa o fecho e o teste de primo
+usa a união das chaves candidatas.
+
+Não é preciso examinar todo \cl{F}. Suponha que uma DF não trivial
+$\fd{X}{A} \in \cl{F}$ viola a forma normal, ou seja, $X$ não é superchave
+(e, na 3FN, $A$ não é primo). Ao calcular \cl{X} com $G$, alguma
+$\fd{Y}{A} \in G$ com $Y \subseteq \cl{X}$ adiciona $A$. Se $Y$ fosse
+superchave, $U = \cl{Y} \subseteq \cl{X}$ e $X$ seria superchave, contradição.
+Logo \fd{Y}{A} também viola a forma normal e é encontrada pelo algoritmo. O
+RHS unitário é necessário na 3FN: em \fd{B}{CD} com $C$ primo e $D$ não, só a
+parte \fd{B}{D} viola.
+
+\paragraph{Complexidade.} A decomposição custa $O(n m)$ e gera $m'$ DFs. Há
+uma chamada a \cmd{keys} (feita uma vez e compartilhada entre os dois modos) e
+um fecho por DF de $G$ ($O(m' \cdot n m)$). O custo é dominado por
+\cmd{keys}.
+
+
+
+
+\subsection{Resumo das complexidades}
+
+\begin{center}
+    \begin{tabular}{lll}
+        \toprule
+        Operação & Tempo & Memória extra \\
+        \midrule
+        Leitura e análise do \texttt{.fds} & $O(\text{tamanho do arquivo})$ & $O(\text{tamanho do arquivo})$ \\
+        \cmd{closure} & $O(n m)$ & $O(1)$ \\
+        \cmd{mincover} & $O(n^2 m'^2) \subseteq O(n^4 m^2)$ & $O(m')$ \\
+        \cmd{keys} & $O(2^{|M|}(n m + k))$ & $O(k)$ \\
+        \cmd{normalform} & $O(2^{|M|}(n m + k) + n m m')$ & $O(m' + k)$ \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Estudos de caso}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Notação: $\{X\} \via{\fd{Y}{Z}} \{XZ\}$ indica que a DF \fd{Y}{Z} foi
+aplicada no cálculo de um fecho, e $\cl{X}_{G}$ é o fecho de $X$ em relação
+a $G$. As tabelas de formas normais listam as DFs de $F$ com RHS unitário, e
+$P$ é o conjunto de atributos primos.
+
+\subsection{Caso 1: exemplo da especificação (violação de BCNF e 3FN)}
+\label{sec:caso1}
+
+Arquivo \texttt{exemplos/prof.fds}:
+\begin{verbatim}
+U = {A,B,C,D,E}
+F = { A->BC, C->D, BD->E }
+\end{verbatim}
+
+\paragraph{Fecho.}
+\begin{align*}
+    \cl{A}  &: \{A\} \via{\fd{A}{BC}} \{ABC\} \via{\fd{C}{D}} \{ABCD\}
+    \via{\fd{BD}{E}} \{ABCDE\} = U \\
+    \cl{BD} &: \{BD\} \via{\fd{BD}{E}} \{BDE\}
+\end{align*}
+
+\paragraph{Cobertura mínima.}
+\begin{enumerate}
+    \item RHS unitário:
+        $G = \{\fd{A}{B},\ \fd{A}{C},\ \fd{C}{D},\ \fd{BD}{E}\}$.
+
+    \item Atributos estranhos. Só \fd{BD}{E} tem LHS com mais de um atributo:
+        \begin{align*}
+            \text{sem } B &: \cl{D}_{G} = \{D\} \not\ni E \\
+            \text{sem } D &: \cl{B}_{G} = \{B\} \not\ni E
+        \end{align*}
+        Nenhum atributo é estranho.
+
+    \item DFs redundantes. Para cada DF, fecho do LHS sem ela:
+        \begin{align*}
+            \fd{A}{B}  &: \{A\} \via{\fd{A}{C}} \{AC\} \via{\fd{C}{D}} \{ACD\} \not\ni B
+            &&\Rightarrow \text{mantém} \\
+            \fd{A}{C}  &: \{A\} \via{\fd{A}{B}} \{AB\} \not\ni C
+            &&\Rightarrow \text{mantém} \\
+            \fd{C}{D}  &: \{C\} \not\ni D
+            &&\Rightarrow \text{mantém} \\
+            \fd{BD}{E} &: \{BD\} \not\ni E
+            &&\Rightarrow \text{mantém}
+        \end{align*}
+\end{enumerate}
+$G$ não muda:
+\begin{verbatim}
+$ ./fdtool mincover --fds exemplos/prof.fds
+A->B
+A->C
+C->D
+BD->E
+\end{verbatim}
+
+\paragraph{Chaves.}
+\begin{align*}
+    L &= A \cup C \cup BD = \{ABCD\} \\
+    R &= BC \cup D \cup E = \{BCDE\} \\
+    S &= U - R = \{A\}               && \text{(fonte)} \\
+    M &= U \cap R \cap L = \{BCD\}   && \text{(meio)} \\
+    R - L &= \{E\}                   && \text{(sumidouro)}
+\end{align*}
+O primeiro candidato é $S \cup \emptyset = \{A\}$, e $\cl{A} = U$ (fecho
+acima), então $\{A\}$ é chave. Os outros $2^3 - 1$ candidatos contêm $\{A\}$
+e são descartados sem calcular fecho. $\mathcal{K} = \{A\}$ e $P = \{A\}$.
+
+\paragraph{Formas normais.}
+\begin{center}
+    \begin{tabular}{lllccc}
+        \toprule
+        \fd{X}{A} & \cl{X} & $X$ superchave? & $A \in P$? & BCNF & 3FN \\
+        \midrule
+        \fd{A}{B}  & $\{ABCDE\} = U$ & sim & não & $\checkmark$ & $\checkmark$ \\
+        \fd{A}{C}  & $\{ABCDE\} = U$ & sim & não & $\checkmark$ & $\checkmark$ \\
+        \fd{C}{D}  & $\{CD\}$        & não & não & $\times$     & $\times$     \\
+        \fd{BD}{E} & $\{BDE\}$       & não & não & $\times$     & $\times$     \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+\begin{verbatim}
+$ ./fdtool normalform --fds exemplos/prof.fds
+BCNF: VIOLATIONS
+3NF: VIOLATIONS
+VIOLATION BCNF: C->D (C not superkey)
+VIOLATION BCNF: BD->E (BD not superkey)
+VIOLATION 3NF: C->D (D not prime, C not superkey)
+VIOLATION 3NF: BD->E (E not prime, BD not superkey)
+\end{verbatim}
+\fd{C}{D} e \fd{BD}{E} são dependências transitivas da chave:
+$A \to C \to D$ e $A \to BD \to E$.
+
+
+
+
+
+\subsection{Caso 2: em 3FN, mas não em BCNF}
+\label{sec:caso2}
+
+Arquivo \texttt{exemplos/multkeys.fds}:
+\begin{verbatim}
+U = {A,B,C}
+F = { AB->C, C->B }
+\end{verbatim}
+
+\paragraph{Cobertura mínima.}
+\begin{enumerate}
+    \item RHS unitário: $G = F = \{\fd{AB}{C},\ \fd{C}{B}\}$.
+
+    \item Atributos estranhos em \fd{AB}{C}:
+        \begin{align*}
+            \text{sem } A &: \cl{B}_{G} = \{B\} \not\ni C \\
+            \text{sem } B &: \cl{A}_{G} = \{A\} \not\ni C
+        \end{align*}
+
+    \item DFs redundantes:
+        \begin{align*}
+            \fd{AB}{C} &: \{AB\} \not\ni C &&\Rightarrow \text{mantém} \\
+            \fd{C}{B}  &: \{C\} \not\ni B  &&\Rightarrow \text{mantém}
+        \end{align*}
+\end{enumerate}
+$G$ não muda. Saída: \texttt{AB->C}, \texttt{C->B}.
+
+
+
+\paragraph{Chaves.}
+\begin{align*}
+    L &= AB \cup C = \{ABC\} \\
+    R &= C \cup B = \{BC\} \\
+    S &= U - R = \{A\}             && \text{(fonte)} \\
+    M &= U \cap R \cap L = \{BC\}  && \text{(meio)} \\
+    R - L &= \emptyset             && \text{(sumidouro)}
+\end{align*}
+Enumeração dos subconjuntos $T \subseteq M$ em ordem crescente de máscara:
+\begin{center}
+    \begin{tabular}{llll}
+        \toprule
+        $T$ & $S \cup T$ & Fecho & Resultado \\
+        \midrule
+        $\emptyset$ & $\{A\}$   & $\{A\}$
+        & não é superchave \\
+        $\{B\}$     & $\{AB\}$  & $\{AB\} \via{\fd{AB}{C}} \{ABC\} = U$
+        & chave \\
+        $\{C\}$     & $\{AC\}$  & $\{AC\} \via{\fd{C}{B}} \{ABC\} = U$
+        & chave \\
+        $\{BC\}$    & $\{ABC\}$ & --
+        & contém $\{AB\}$, descartado \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+$\mathcal{K} = \{AB,\ AC\}$ e $P = AB \cup AC = \{ABC\} = U$.
+
+
+
+\paragraph{Formas normais.}
+\begin{center}
+    \begin{tabular}{lllccc}
+        \toprule
+        \fd{X}{A} & \cl{X} & $X$ superchave? & $A \in P$? & BCNF & 3FN \\
+        \midrule
+        \fd{AB}{C} & $\{ABC\} = U$ & sim & sim & $\checkmark$ & $\checkmark$ \\
+        \fd{C}{B}  & $\{BC\}$      & não & sim & $\times$     & $\checkmark$ \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+\begin{verbatim}
+$ ./fdtool normalform --fds exemplos/multkeys.fds
+BCNF: VIOLATIONS
+3NF: OK
+VIOLATION BCNF: C->B (C not superkey)
+\end{verbatim}
+\fd{C}{B} viola a BCNF porque $C$ não é superchave, mas satisfaz a 3FN porque
+$B$ é primo.
+
+
+
+
+
+
+\subsection{Caso 3: redundância e atributo estranho}
+\label{sec:caso3}
+
+Arquivo \texttt{exemplos/extra.fds}:
+\begin{verbatim}
+U = {A,B,C,D}
+F = { A->B, B->C, A->C, AB->D }
+\end{verbatim}
+
+\paragraph{Fecho.}
+\begin{align*}
+    \cl{A} &: \{A\} \via{\fd{A}{B}} \{AB\} \via{\fd{B}{C}} \{ABC\}
+    \via{\fd{AB}{D}} \{ABCD\} = U \\
+    \cl{B} &: \{B\} \via{\fd{B}{C}} \{BC\}
+\end{align*}
+
+\paragraph{Cobertura mínima.}
+\begin{enumerate}
+    \item RHS unitário: todas as DFs já têm RHS unitário e nenhuma é trivial,
+        então $G = F$.
+
+    \item Atributos estranhos. Só \fd{AB}{D} tem LHS com mais de um atributo:
+        \begin{align*}
+            \text{sem } A &: \cl{B}_{G} = \{BC\} \not\ni D \\
+            \text{sem } B &: \cl{A}_{G} = \{ABCD\} \ni D
+            &&\Rightarrow B \text{ é estranho, } \fd{AB}{D} \text{ vira } \fd{A}{D}
+        \end{align*}
+        Agora $G = \{\fd{A}{B},\ \fd{B}{C},\ \fd{A}{C},\ \fd{A}{D}\}$. O
+        atributo $B$ é estranho porque $A$ já determina $B$.
+
+    \item DFs redundantes, em ordem. O fecho é calculado sobre o $G$ já
+        reduzido, sem a DF testada:
+        \begin{align*}
+            \fd{A}{B} &: \{A\} \via{\fd{A}{C}} \{AC\} \via{\fd{A}{D}} \{ACD\} \not\ni B
+            &&\Rightarrow \text{mantém} \\
+            \fd{B}{C} &: \{B\} \not\ni C
+            &&\Rightarrow \text{mantém} \\
+            \fd{A}{C} &: \{A\} \via{\fd{A}{B}} \{AB\} \via{\fd{B}{C}} \{ABC\} \ni C
+            &&\Rightarrow \text{remove} \\
+            \fd{A}{D} &: \{A\} \via{\fd{A}{B}} \{AB\} \via{\fd{B}{C}} \{ABC\} \not\ni D
+            &&\Rightarrow \text{mantém}
+        \end{align*}
+\end{enumerate}
+\begin{verbatim}
+$ ./fdtool mincover --fds exemplos/extra.fds
+A->B
+B->C
+A->D
+\end{verbatim}
+
+\paragraph{Chaves.}
+\begin{align*}
+    L &= A \cup B \cup A \cup AB = \{AB\} \\
+    R &= B \cup C \cup C \cup D = \{BCD\} \\
+    S &= U - R = \{A\}            && \text{(fonte)} \\
+    M &= U \cap R \cap L = \{B\}  && \text{(meio)} \\
+    R - L &= \{CD\}               && \text{(sumidouros)}
+\end{align*}
+O primeiro candidato é $S \cup \emptyset = \{A\}$, e $\cl{A} = U$ (fecho
+acima), então $\{A\}$ é chave. O único outro candidato, $\{AB\}$, contém
+$\{A\}$ e é descartado. $\mathcal{K} = \{A\}$ e $P = \{A\}$.
+
+\paragraph{Formas normais.}
+\begin{center}
+    \begin{tabular}{lllccc}
+        \toprule
+        \fd{X}{A} & \cl{X} & $X$ superchave? & $A \in P$? & BCNF & 3FN \\
+        \midrule
+        \fd{A}{B}  & $\{ABCD\} = U$ & sim & não & $\checkmark$ & $\checkmark$ \\
+        \fd{B}{C}  & $\{BC\}$       & não & não & $\times$     & $\times$     \\
+        \fd{A}{C}  & $\{ABCD\} = U$ & sim & não & $\checkmark$ & $\checkmark$ \\
+        \fd{AB}{D} & $\{ABCD\} = U$ & sim & não & $\checkmark$ & $\checkmark$ \\
+        \bottomrule
+    \end{tabular}
+\end{center}
+\begin{verbatim}
+$ ./fdtool normalform --fds exemplos/extra.fds
+BCNF: VIOLATIONS
+3NF: VIOLATIONS
+VIOLATION BCNF: B->C (B not superkey)
+VIOLATION 3NF: B->C (C not prime, B not superkey)
+\end{verbatim}
+A tabela inclui \fd{A}{C} e \fd{AB}{D}, embora a cobertura mínima remova a
+primeira e reescreva a segunda, pois a verificação usa as DFs da entrada.
+Ambas têm LHS superchave. \fd{B}{C} é uma dependência transitiva da chave:
+$A \to B \to C$.
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Limitações}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{itemize}
+    \item \textbf{Universo limitado a 26 atributos} de uma letra
+        (\texttt{A..Z}, sem minúsculas), o que foi o motivo principal de
+        bitsets terem sido escolhidos em vez de grafos.
+
+    \item \textbf{Custo exponencial de \cmd{keys}} no número de atributos do
+        ``meio'' ($2^{|M|}$, até $2^{26}$). As entradas tendem a ser pequenas
+        devido a limitação do Universo, mas instâncias muito grandes podem
+        demorar um pouco.
+
+    \item \textbf{Cobertura mínima dependente da ordem} da entrada.
+        Os arquivos \texttt{order1.fds} e \texttt{order2.fds} diferem apenas na
+        ordem de \fd{A}{C} e \fd{B}{C} e produzem coberturas diferentes
+        (\fd{B}{C} contra \fd{A}{C}), ambas válidas. Ideal seria identificar
+        e potencialmente imprimir todas as coberturas que a instância permite.
+
+    \item \textbf{Deduplicação apenas na saída.} Por exemplo, na sequinte
+        dependência: $U = \{A,B,C\}$ e $F = \{\fd{A}{B},\ \fd{B}{C},\ \fd{B}{C}\}$,
+        tudo funciona sem \textit{warnings}, porém a saída imprime apenas uma vez
+        cada FD única, como explicado no e-mail.
+
+    \item \textbf{Sem decomposição}: a ferramenta diagnostica as formas normais,
+        mas não propõe decomposições em BCNF ou 3FN.
+
+\end{itemize}
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Principais decisões}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{itemize}
+    \item \textbf{Bitset para conjuntos de atributos.} Foi considerada uma
+        representação em grafo, mas com no máximo 26 atributos operações de
+        conjuntos ficam simples e rápidas.
+
+    \item \textbf{Analisador léxico e sintático} com base na gramática que
+        esperada e diagnósticos no estilo do GCC. O subcomando extra,
+        \cmd{check}, só valida o arquivo.
+
+    \item \textbf{Enumeração crescente de submáscaras} em \cmd{keys},o que
+        garante minimalidade sem um passo extra de filtragem e reduz o espaço
+        de busca.
+
+    \item \textbf{Interface.} Opções aceitas como \texttt{----fds arq} ou
+        \texttt{----fds=arq}, em qualquer ordem; \texttt{----X} aceita \texttt{AB},
+        \texttt{A,B} ou \texttt{A B} e é validado contra $U$. Códigos de saída:
+        0 (ok), 1 (erro de leitura) e 2 (uso incorreto).
+
+    \item \textbf{Saída ordenada.} Conjuntos são impressos percorrendo os bits
+        de \texttt{A} a \texttt{Z}, ordenando automaticamente.
+\end{itemize}
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Uso de IA e referências}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Inteligência artificial foi utilizada para pesquisar tópicos e esclarecer conceitos, não
+para escrever código-fonte. A versão base deste relatório foi gerada com auxílio de IA
+a partir do código e dos exemplos do repositório, e depois revisada pelo autor.
+
+{\small
+\begin{itemize}[nosep]
+    \item \textbf{Disciplina}
+    \begin{itemize}[nosep]
+        \item Slides da disciplina de Banco de Dados.
+    \end{itemize}
+    \item \textbf{Dependências funcionais e cobertura mínima}
+    \begin{itemize}[nosep]
+        \item \url{https://www.geeksforgeeks.org/dbms/how-to-find-minimal-set/}
+        \item \url{https://stackoverflow.com/questions/10284004/}
+    \end{itemize}
+    \item \textbf{Enumeração de submáscaras}
+    \begin{itemize}[nosep]
+        \item \url{https://www.inf.ufpr.br/andre/Disciplinas/CI1031-2026-2/03-busca-completa-matematica.pdf}
+    \end{itemize}
+    \item \textbf{Contagem de bits}
+    \begin{itemize}[nosep]
+        \item \url{https://stackoverflow.com/questions/109023/}
+        \item \url{https://www.felixcloutier.com/x86/popcnt}
+        \item \url{https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html#index-_005f_005fbuiltin_005fpopcount}
+        \item \url{https://clang.llvm.org/docs/LanguageExtensions.html#builtin-popcountg}
+        \item \url{https://learn.microsoft.com/en-us/cpp/intrinsics/popcnt16-popcnt-popcnt64?view=msvc-170}
+        \item \url{https://en.wikipedia.org/wiki/Hamming_weight}
+    \end{itemize}
+    \item \textbf{Vetor dinâmico}
+    \begin{itemize}[nosep]
+        \item \url{https://www.youtube.com/watch?v=gtk3RZHwJUA}
+        \item \url{https://stackoverflow.com/questions/1100311/}
+    \end{itemize}
+    \item \textbf{Analisador léxico e sintático}
+    \begin{itemize}[nosep]
+        \item \url{https://github.com/lotabout/write-a-C-interpreter/blob/master/tutorial/en/3-Lexer.md}
+        \item \url{https://stackoverflow.com/questions/17975913/}
+        \item \url{https://github.com/rexim/bnfuzzer}
+    \end{itemize}
+    \item \textbf{Linguagem C}
+    \begin{itemize}[nosep]
+        \item \url{https://stackoverflow.com/questions/7762731/}
+        \item \url{https://sourceware.org/glibc/manual/latest/html_node/Feature-Test-Macros.html}
+        \item \url{https://gcc.gnu.org/onlinedocs/gcc/Common-Attributes.html#index-format}
+        \item \url{https://stackoverflow.com/a/35281548}
+    \end{itemize}
+    \item \textbf{Cores no terminal}
+    \begin{itemize}[nosep]
+        \item \url{https://gist.github.com/JBlond/2fea43a3049b38287e5e9cefc87b2124}
+    \end{itemize}
+\end{itemize}
+}
+
+\end{document}
