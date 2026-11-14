@@ -210,4 +210,4 @@ This was made for a assignment from my DB classes.
 - [X] cli
 - ~format~
 - [X] fix readme
-- [ ] report
+- [X] report
