@@ -212,7 +212,12 @@ FD *nf_violations(const Inst *in, const AttrSet *ks, bool tnf)
     /* 3NF: rhs can be prime */
     if (tnf && attr_subset(fd.rhs, prime)) continue;
 
+    /* if there are duplicate fds, dont return them twice */
+    for (size_t j = 0; j < arr_len(out); j++)
+      if (fd_ident(&fd, &out[j])) goto cont;
+
     arr_push(out, fd);
+cont:;
   }
 
   arr_free(g);
